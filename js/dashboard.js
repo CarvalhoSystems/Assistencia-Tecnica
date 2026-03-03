@@ -120,15 +120,6 @@ function aplicarFallbackUploadEmAmbienteLocal() {
     if (!ambienteLocal) return;
 
     storageUploadHabilitado = false;
-
-    if (!avisoStorageJaExibido) {
-      avisoStorageJaExibido = true;
-      Swal.fire({
-        icon: "info",
-        title: "Modo local detectado",
-        text: "Uploads de foto foram desativados temporariamente para evitar bloqueio de CORS no localhost. A OS será criada normalmente sem fotos no Firebase Storage.",
-      });
-    }
   } catch (error) {
     console.error("Erro ao aplicar fallback de ambiente local:", error);
   }
@@ -494,10 +485,169 @@ function renderizarClientesCadastrados() {
         <td>${c.cpf || "-"}</td>
         <td>${c.telefone || c.whatsapp || "-"}</td>
         <td>${c.email || "-"}</td>
+        <td>
+          <button class="btn btn-primary" onclick="abrirModalEditarClienteCadastrado('${c.id}')">
+            <i class="fas fa-edit"></i>
+            Editar
+          </button>
+        </td>
       </tr>
     `,
     )
     .join("");
+}
+
+//======================
+// Editar Cliente
+//======================
+function abrirModalEditarClienteCadastrado(clienteId) {
+  const cliente = clientes.find((c) => String(c.id) === String(clienteId));
+  if (!cliente) return;
+
+  // Preencher o formulário de edição com os dados da cliente
+  document.getElementById("edit-cliente-id").value = cliente.id || "";
+  document.getElementById("edit-cliente-nome").value = cliente.nome || "";
+  document.getElementById("edit-cliente-cpf").value = cliente.cpf || "";
+  document.getElementById("edit-cliente-telefone").value =
+    cliente.telefone || "";
+  document.getElementById("edit-cliente-whatsapp").value =
+    cliente.whatsapp || "";
+  document.getElementById("edit-cliente-email").value = cliente.email || "";
+  document.getElementById("edit-cliente-endereco").value =
+    cliente.endereco || "";
+
+  const modal = document.getElementById("modal-editar-cliente");
+  if (modal) modal.classList.add("active");
+}
+
+function fecharModalEditarClienteCadastrado() {
+  const modal = document.getElementById("modal-editar-cliente");
+  if (modal) modal.classList.remove("active");
+}
+
+async function salvarEdicaoClienteCadastrado() {
+  const clienteId = document.getElementById("edit-cliente-id").value;
+  const cliente = clientes.find((c) => String(c.id) === String(clienteId));
+
+  if (!cliente) return;
+
+  // Validate required fields
+  const nomeCliente = document.getElementById("edit-cliente-nome").value;
+  const cpfCliente = document.getElementById("edit-cliente-cpf").value;
+  const telefoneCliente = document.getElementById(
+    "edit-cliente-telefone",
+  ).value;
+  const whatsappCliente = document.getElementById(
+    "edit-cliente-whatsapp",
+  ).value;
+  const emailCliente = document.getElementById("edit-cliente-email").value;
+  const enderecoCliente = document.getElementById(
+    "edit-cliente-endereco",
+  ).value;
+
+  if (
+    !nomeCliente ||
+    !cpfCliente ||
+    !telefoneCliente ||
+    !whatsappCliente ||
+    !emailCliente
+  ) {
+    Swal.fire("Erro", "Preencha todos os campos obrigatórios!", "warning");
+    return;
+  }
+
+  // Prepare updated cliente data
+  const clienteDataAtualizada = {
+    ...cliente,
+    nome: nomeCliente,
+    cpf: cpfCliente,
+    telefone: telefoneCliente,
+    whatsapp: whatsappCliente,
+    email: emailCliente,
+    endereco: enderecoCliente,
+    updatedAt: new Date(),
+  };
+
+  try {
+    // Atualiza diretamente pelo ID do documento (doc.id)
+    await db
+      .collection("clientes")
+      .doc(String(clienteId))
+      .update(clienteDataAtualizada);
+
+    // Update local array
+    const index = clientes.findIndex((c) => String(c.id) === String(clienteId));
+    if (index !== -1) {
+      clientes[index] = clienteDataAtualizada;
+    }
+    if (typeof salvarClientes === "function") salvarClientes();
+
+    Swal.fire({
+      icon: "success",
+      title: "Cliente atualizado!",
+      text: `Cliente ${clienteId} atualizado com sucesso.`,
+      timer: 2000,
+    });
+
+    fecharModalEditarClienteCadastrado();
+    renderizarClientesCadastrados();
+  } catch (error) {
+    console.error("Erro ao atualizar cliente:", error);
+    // Update locally anyway for demo
+    const index = clientes.findIndex((c) => String(c.id) === String(clienteId));
+    if (index !== -1) {
+      clientes[index] = clienteDataAtualizada;
+    }
+    if (typeof salvarClientes === "function") salvarClientes();
+
+    Swal.fire({
+      icon: "success",
+      title: "Cliente atualizado!",
+      text: `Cliente ${clienteId} atualizado com sucesso (modo local).`,
+      timer: 2000,
+    });
+
+    fecharModalEditarClienteCadastrado();
+    renderizarClientesCadastrados();
+  }
+}
+
+async function excluirClienteCadastrado() {
+  const clienteId = document.getElementById("edit-cliente-id")?.value;
+  if (!clienteId) return;
+
+  const cliente = clientes.find((c) => String(c.id) === String(clienteId));
+
+  const confirmacao = await Swal.fire({
+    title: "Excluir cliente?",
+    text: `Esta ação removerá ${cliente?.nome || "o cliente"} definitivamente.`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Sim, excluir",
+    cancelButtonText: "Cancelar",
+    confirmButtonColor: "#ef4444",
+  });
+
+  if (!confirmacao.isConfirmed) return;
+
+  try {
+    await db.collection("clientes").doc(String(clienteId)).delete();
+  } catch (error) {
+    console.error("Erro ao excluir cliente no Firestore:", error);
+  }
+
+  clientes = clientes.filter((c) => String(c.id) !== String(clienteId));
+  if (typeof salvarClientes === "function") salvarClientes();
+
+  fecharModalEditarClienteCadastrado();
+  renderizarClientesCadastrados();
+
+  Swal.fire({
+    icon: "success",
+    title: "Cliente excluído!",
+    timer: 1500,
+    showConfirmButton: false,
+  });
 }
 
 //============================
@@ -546,8 +696,14 @@ function buscarClientesCadastrados() {
       <tr>
         <td>${c.nome}</td>
         <td>${c.cpf || "-"}</td>
-        <td>${c.telefone || "-"}</td>
+        <td>${c.telefone || c.whatsapp || "-"}</td>
         <td>${c.email || "-"}</td>
+        <td>
+          <button class="btn btn-primary" onclick="abrirModalEditarClienteCadastrado('${c.id}')">
+            <i class="fas fa-edit"></i>
+            Editar
+          </button>
+        </td>
       </tr>
     `,
     )
@@ -747,7 +903,7 @@ async function salvarNovaOS() {
 
     const osDataFirestore = {
       ...osData,
-      fotos: fotosSalvas,
+      fotos: fotosParaUsoLocal,
     };
 
     await db.collection("ordens_servico").add(osDataFirestore);
@@ -1118,6 +1274,25 @@ function formatarData(data) {
   });
 }
 
+function obterFotosValidasOS(os) {
+  const fotosBrutas =
+    (Array.isArray(os?.fotos) && os.fotos) ||
+    (Array.isArray(os?.fotosOS) && os.fotosOS) ||
+    (Array.isArray(os?.imagens) && os.imagens) ||
+    (os?.fotos && typeof os.fotos === "object" && Object.values(os.fotos)) ||
+    [];
+
+  return fotosBrutas
+    .map((foto) => {
+      if (typeof foto === "string") return normalizarUrlFoto(foto);
+      if (foto && typeof foto === "object") {
+        return normalizarUrlFoto(foto.url || foto.src || "");
+      }
+      return "";
+    })
+    .filter((foto) => typeof foto === "string" && foto.trim() !== "");
+}
+
 function filtrarOS() {
   renderizarOrdens();
 }
@@ -1391,82 +1566,96 @@ async function salvarEdicaoOS() {
   }
 }
 
-function renderizarDetalhesOS(os) {
-  document.getElementById("detalhes-cliente-nome").textContent =
-    os.cliente?.nome || "-";
-  document.getElementById("detalhes-cliente-telefone").textContent =
-    os.cliente?.telefone || "-";
-  document.getElementById("detalhes-cliente-whatsapp").textContent =
-    os.cliente?.whatsapp || "-";
+//==============================================================================
+// DETALHES OS
+//==============================================================================
 
-  document.getElementById("detalhes-aparelho").textContent = `${getMarcaText(
-    os.marca,
-  )} ${os.modelo}`;
-  document.getElementById("detalhes-cor").textContent = os.cor || "-";
-  document.getElementById("detalhes-imei").textContent = os.imei || "-";
-  document.getElementById("detalhes-senha").textContent = os.senha || "-";
-  document.getElementById("detalhes-defeito").textContent = os.defeito || "-";
-  document.getElementById("detalhes-previsao").textContent = formatarData(
-    os.previsao,
+function renderizarDetalhesOS(os) {
+  const setText = (id, valor) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = valor;
+  };
+
+  setText("detalhes-cliente-nome", os.cliente?.nome || "-");
+  setText("detalhes-cliente-telefone", os.cliente?.telefone || "-");
+  setText("detalhes-cliente-whatsapp", os.cliente?.whatsapp || "-");
+
+  setText("detalhes-aparelho", `${getMarcaText(os.marca)} ${os.modelo || ""}`);
+  setText("detalhes-cor", os.cor || "-");
+  setText("detalhes-imei", os.imei || "-");
+  setText("detalhes-senha", os.senha || "-");
+  setText("detalhes-defeito", os.defeito || "-");
+  setText("detalhes-previsao", formatarData(os.previsao));
+  setText("detalhes-liga", os.checklist || "-");
+  setText(
+    "detalhes-valor",
+    os.orcamento
+      ? `R$ ${Number(os.orcamento).toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+        })}`
+      : "-",
   );
-  document.getElementById("detalhes-liga").textContent = os.checklist || "-";
-  document.getElementById("detalhes-valor").textContent = os.orcamento
-    ? `R$ ${Number(os.orcamento).toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-      })}`
-    : "-";
 
   // Fotos
   const fotosContainer = document.querySelector(
     "#modal-detalhes-os .fotos-grid",
   );
   if (fotosContainer) {
-    const fotosValidas = (os.fotos || []).filter(Boolean);
-    if (fotosValidas.length > 0) {
-      fotosContainer.innerHTML = fotosValidas
-        .map(
-          (foto, index) => `
-            <div class="foto-thumb">
-              <img src="${foto}" alt="Foto ${index + 1}" />
-            </div>
-          `,
-        )
-        .join("");
-    } else {
-      fotosContainer.innerHTML = `
-        <div class="foto-thumb" style="grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
-          Sem fotos anexadas nesta OS.
-        </div>
-      `;
+    const placeholderFoto =
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2394a3b8' viewBox='0 0 24 24'%3E%3Cpath d='M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z'/%3E%3C/svg%3E";
+    const fotosValidas = obterFotosValidasOS(os);
+    const fotosParaRenderizar = [...fotosValidas.slice(0, 4)];
+
+    while (fotosParaRenderizar.length < 4) {
+      fotosParaRenderizar.push(placeholderFoto);
     }
+
+    fotosContainer.innerHTML = fotosParaRenderizar
+
+      .map(
+        (foto, index) => `
+          <div class="foto-thumb">
+            <img src="${foto}" alt="Foto ${index + 1}" onerror="this.onerror=null;this.src='${placeholderFoto}'" />
+          </div>
+        `,
+      )
+      .join("");
   }
 
   // Checklist
   const checklist = os.checklist || {};
-  document.getElementById("detalhes-liga").textContent =
+  setText(
+    "detalhes-liga",
     checklist.liga === "sim"
       ? "✓ Sim"
       : checklist.liga === "nao"
         ? "✗ Não"
-        : "-";
-  document.getElementById("detalhes-wifi").textContent =
+        : "-",
+  );
+  setText(
+    "detalhes-wifi",
     checklist.wifi === "sim"
       ? "✓ Sim"
       : checklist.wifi === "nao"
         ? "✗ Não"
-        : "-";
-  document.getElementById("detalhes-touch").textContent =
+        : "-",
+  );
+  setText(
+    "detalhes-touch",
     checklist.touch === "sim"
       ? "✓ Sim"
       : checklist.touch === "nao"
         ? "✗ Não"
-        : "-";
-  document.getElementById("detalhes-botoes").textContent =
+        : "-",
+  );
+  setText(
+    "detalhes-botoes",
     checklist.botoes === "ok"
       ? "✓ Ok"
       : checklist.botoes === "ruim"
         ? "✗ Ruim"
-        : "-";
+        : "-",
+  );
 
   // Log
   const logContainer = document.getElementById("detalhes-log");
@@ -1501,7 +1690,7 @@ function imprimirOS(osId) {
   const os = ordensServico.find((o) => o.id === idParaImpressao);
   if (!os) return;
 
-  const fotosValidas = (os.fotos || []).filter(Boolean);
+  const fotosValidas = obterFotosValidasOS(os);
 
   // Create printable content
   const printContent = `
@@ -1513,9 +1702,24 @@ function imprimirOS(osId) {
           h1 { text-align: center; }
           .section { margin-bottom: 20px; }
           .section h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-          .field { margin-bottom: 10px; }
+          .field { margin-bottom: 6px; }
           .field label { font-weight: bold; }
           .field span { margin-left: 10px; }
+          .photos-print { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+          .photo img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+          }
+            @media print {
+  .orcamento {
+    page-break-before: avoid;
+    page-break-inside: avoid;
+  }
+}
+
         </style>
       </head>
       <body>
@@ -1597,19 +1801,19 @@ function imprimirOS(osId) {
           <h2>Fotos</h2>  
           ${
             fotosValidas.length > 0
-              ? fotosValidas
+              ? `<div class="photos-print">${fotosValidas
                   .map(
                     (foto, index) => `  
             <div class="photo">
-              <img src="${foto}" alt="Foto ${index + 1}" style="max-width: 100%; margin-bottom: 10px;">
+              <img src="${foto}" alt="Foto ${index + 1}">
             </div>
             `,
                   )
-                  .join("")
+                  .join("")}</div>`
               : "<p>Sem fotos anexadas.</p>"
           }
         </div>
-        <div class="section">
+        <div class="section orcamento">
           <h2>Previsão de Entrega</h2>
           <div class="field">
             <span>${formatarData(os.previsao)}</span>
@@ -1624,24 +1828,48 @@ function imprimirOS(osId) {
       </body>
     </html>
   `;
-  const printWindow = window.open("", "_blank"); // Removido "os.value" para evitar erros de URL
+  const printWindow = window.open(os.id, "_blank"); // Removido "os.value" para evitar erros de URL
   printWindow.document.write(printContent);
   printWindow.document.close(); // Essencial para o navegador entender que o conteúdo acabou
 
   // Aguarda as imagens carregarem antes de abrir a caixa de impressão
   printWindow.onload = function () {
-    printWindow.focus(); // Foca na janela nova
-    printWindow.print(); // Abre a opção de encontrar/escolher a impressora
+    const imagens = Array.from(printWindow.document.images || []);
 
-    // Fecha a janela após a impressão (ou cancelamento)
-    // O setTimeout ajuda a evitar que a janela feche antes do comando de print disparar em alguns browsers
-    setTimeout(() => {
-      printWindow.close();
-    }, 500);
+    const finalizarImpressao = () => {
+      printWindow.focus(); // Foca na janela nova
+      printWindow.print(); // Abre a opção de encontrar/escolher a impressora
+
+      // Fecha a janela após a impressão (ou cancelamento)
+      setTimeout(() => {
+        printWindow.close();
+      }, 500);
+    };
+
+    if (imagens.length === 0) {
+      finalizarImpressao();
+      return;
+    }
+
+    let pendentes = imagens.length;
+    const concluir = () => {
+      pendentes -= 1;
+      if (pendentes <= 0) {
+        finalizarImpressao();
+      }
+    };
+
+    imagens.forEach((img) => {
+      if (img.complete) {
+        concluir();
+      } else {
+        img.addEventListener("load", concluir, { once: true });
+        img.addEventListener("error", concluir, { once: true });
+      }
+    });
   };
 }
 
-function adcionarImpressora() {}
 //======================
 // Photo Capture
 //======================
