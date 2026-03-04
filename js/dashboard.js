@@ -2184,3 +2184,121 @@ function atualizarDadosFinanceiros() {
 //==================
 // Relatorios
 //==================
+function abrirModalRelatorios() {
+  const modal = document.getElementById("modal-gerenciar-relatorios");
+  if (!modal) return;
+
+  const agora = new Date();
+  const inputAno = document.getElementById("year-relatorio");
+  const inputMes = document.getElementById("month-relatorio");
+
+  if (inputAno && !inputAno.value) inputAno.value = String(agora.getFullYear());
+  if (inputMes && !inputMes.value)
+    inputMes.value = String(agora.getMonth() + 1);
+
+  modal.classList.add("active");
+}
+
+function fecharModalGerenciarRelatorios() {
+  const modal = document.getElementById("modal-gerenciar-relatorios");
+  if (!modal) return;
+  modal.classList.remove("active");
+}
+
+function gerarRelatorios() {
+  const ano = Number(document.getElementById("year-relatorio")?.value);
+  const mes = Number(document.getElementById("month-relatorio")?.value);
+
+  if (!ano || !mes) {
+    Swal.fire("Erro", "Preencha todos os campos obrigatórios!", "warning");
+    return;
+  }
+
+  const relatorioMensal = gerarRelatorioMensal(ano, mes);
+  const resultadoEl = document.getElementById("relatorio-resultado");
+
+  if (resultadoEl) {
+    resultadoEl.innerHTML = `
+      <h3 class="section-title" style="margin-bottom: 12px;">
+        <i class="fas fa-chart-column"></i>
+        Resultado do Relatório (${String(mes).padStart(2, "0")}/${ano})
+      </h3>
+      <div class="detalhes-grid">
+        <div class="detalhes-item"><span class="detalhes-label">OS concluídas:</span><span class="detalhes-value">${relatorioMensal.qtdConcluida}</span></div>
+        <div class="detalhes-item"><span class="detalhes-label">Faturamento:</span><span class="detalhes-value">${relatorioMensal.faturamentoTotal}</span></div>
+        <div class="detalhes-item"><span class="detalhes-label">Ticket médio:</span><span class="detalhes-value">${relatorioMensal.ticketMedio}</span></div>
+      </div>
+    `;
+  }
+
+  Swal.fire({
+    icon: "success",
+    title: "Relatório gerado!",
+    text: "Relatório mensal atualizado com sucesso.",
+    timer: 1800,
+    showConfirmButton: false,
+  });
+}
+
+function gerarRelatorioSemestral(ano, mes) {
+  // Mantido por compatibilidade. Usa a mesma base do mensal.
+  return gerarRelatorioMensal(ano, mes);
+}
+
+function gerarRelatorioMensal(ano, mes) {
+  const mesNumero = Number(mes);
+  const anoNumero = Number(ano);
+
+  const dataInicial = new Date(anoNumero, mesNumero - 1, 1);
+  const dataFinal = new Date(anoNumero, mesNumero, 0);
+
+  // 1. Filtra apenas os OS concluídos no mês atual
+  const osDoMes = ordensServico.filter((os) => {
+    const dataOS =
+      converterParaData(os.updatedAt) ||
+      converterParaData(os.createdAt) ||
+      converterParaData(os.previsao);
+    if (!dataOS) return false;
+
+    const statusConcluido = os.status === "pronto" || os.status === "entregue";
+    return (
+      statusConcluido &&
+      dataOS.getMonth() === mesNumero - 1 &&
+      dataOS.getFullYear() === anoNumero
+    );
+  });
+
+  // 2. Calcula o total de faturamento
+  const faturamentoTotal = osDoMes.reduce((acc, os) => {
+    // 1. Tenta pegar o valor de 'orcamento' ou 'valor' (caso você tenha mudado o nome)
+    let valor = os.orcamento || os.valor || 0;
+
+    // 2. Garante que o valor seja um número (remove R$ e converte vírgula se necessário)
+    if (typeof valor === "string") {
+      valor = valor.replace("R$", "").replace(".", "").replace(",", ".").trim();
+    }
+
+    return acc + (parseFloat(valor) || 0);
+  }, 0);
+
+  // 3. Calcula o ticket medio
+  const qtdConcluida = osDoMes.length;
+  const ticketMedio = qtdConcluida > 0 ? faturamentoTotal / qtdConcluida : 0;
+
+  // 4. Cria o relatório
+  return {
+    ano: anoNumero,
+    mes: mesNumero,
+    dataInicial: dataInicial.toISOString(),
+    dataFinal: dataFinal.toISOString(),
+    faturamentoTotal: faturamentoTotal.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }),
+    qtdConcluida,
+    ticketMedio: ticketMedio.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }),
+  };
+}

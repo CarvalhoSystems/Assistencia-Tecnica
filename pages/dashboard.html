@@ -45,7 +45,7 @@
         <i class="fas fa-chart-pie"></i>
         <span>Financeiro</span>
       </a>
-      <a href="#" class="nav-item" data-page="relatorios" id="relatorios-mensal">
+      <a href="#" class="nav-item" data-page="relatorios" onclick="abrirModalRelatorios()">
         <i class="fas fa-file-alt"></i>
         <span>Relatórios</span>
       </a>
@@ -909,6 +909,69 @@
   </div>
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
+
+  <!-- Modal Relatórios -->
+  <div class="modal-overlay" id="modal-gerenciar-relatorios">
+    <div class="modal modal-cliente">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <i class="fas fa-file-alt"></i>
+          Relatórios
+        </h2>
+        <button class="modal-close" onclick="fecharModalGerenciarRelatorios()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-section">
+          <h3 class="section-title">
+            <i class="fas fa-calendar-alt"></i>
+            Relatório Mensal
+          </h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="year-relatorio">Ano</label>
+              <input type="number" class="form-input" id="year-relatorio" min="2020" max="2100" placeholder="2026" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="month-relatorio">Mês</label>
+              <select class="form-select" id="month-relatorio">
+                <option value="">Selecione...</option>
+                <option value="1">Janeiro</option>
+                <option value="2">Fevereiro</option>
+                <option value="3">Março</option>
+                <option value="4">Abril</option>
+                <option value="5">Maio</option>
+                <option value="6">Junho</option>
+                <option value="7">Julho</option>
+                <option value="8">Agosto</option>
+                <option value="9">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section" id="relatorio-resultado" style="margin-top: 14px;">
+          <p class="form-label">Gere um relatório para visualizar os dados.</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="fecharModalGerenciarRelatorios()">Fechar</button>
+        <button class="btn btn-primary" onclick="gerarRelatorios()">
+          <i class="fas fa-file-alt"></i>
+          Gerar Relatório
+        </button>
+      </div>
+    </div>
+  </div>
+
+
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
