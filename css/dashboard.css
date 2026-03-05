@@ -1291,7 +1291,12 @@ Responsividade
   }
 
   .section-header {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-header .chart-title {
+    margin-bottom: 0;
   }
 
   .search-box {
@@ -1301,6 +1306,31 @@ Responsividade
   .search-box input {
     width: 100%;
     min-width: 0;
+  }
+
+  .filters {
+    justify-content: flex-start;
+  }
+
+  .filter-btn {
+    padding: 8px 12px;
+  }
+
+  .os-section {
+    padding: 16px;
+  }
+
+  .os-table {
+    min-width: 620px;
+  }
+
+  .os-table th,
+  .os-table td {
+    padding: 10px 12px;
+  }
+
+  .actions-cell {
+    flex-wrap: wrap;
   }
 
   .status-grid {
