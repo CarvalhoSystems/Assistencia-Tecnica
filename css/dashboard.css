@@ -140,6 +140,14 @@ Main Content
   width: calc(100% - 260px);
 }
 
+/* evita cortes horizontais em blocos com tabela/conteúdo largo */
+.os-section,
+.chart-card,
+.form-section,
+.detalhes-section {
+  min-width: 0;
+}
+
 .top-bar {
   display: flex;
   justify-content: space-between;
@@ -381,6 +389,7 @@ OS Table
   border-radius: 16px;
   padding: 24px;
   border: 1px solid var(--border);
+  overflow-x: auto;
 }
 
 .section-header {
@@ -444,7 +453,7 @@ OS Table
 .os-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 760px;
+  min-width: 700px;
 }
 
 .os-table th {
@@ -1075,6 +1084,8 @@ Modal Detalhes OS
 .detalhes-item {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .detalhes-label {
@@ -1249,15 +1260,47 @@ Responsividade
 }
 
 @media (max-width: 1024px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .main-content {
+    margin-left: 220px;
+    width: calc(100% - 220px);
+  }
+
+  .dashboard-content {
+    padding: 18px;
+  }
+
   .top-bar {
     flex-wrap: wrap;
     justify-content: flex-start;
+    padding: 14px 18px;
   }
 
   .top-bar-actions {
     width: 100%;
     justify-content: flex-end;
     flex-wrap: wrap;
+  }
+
+  .top-bar-actions .btn {
+    min-width: 140px;
+    justify-content: center;
+  }
+
+  .section-header {
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .search-box input {
+    width: 100%;
+    min-width: 0;
   }
 
   .status-grid {
@@ -1270,6 +1313,17 @@ Responsividade
 
   .fotos-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal {
+    width: calc(100% - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 16px;
   }
 }
 
