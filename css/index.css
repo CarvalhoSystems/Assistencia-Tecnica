@@ -58,7 +58,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: clamp(12px, 3vw, 20px);
 }
 
 /*
@@ -182,6 +182,7 @@ button {
   margin-top: 8px;
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
 button::before {
@@ -290,6 +291,7 @@ Responsividade
 @media (max-width: 480px) {
   .login-container {
     padding: 36px 24px;
+    border-radius: 18px;
   }
 
   .heading {
@@ -306,5 +308,30 @@ Responsividade
 
   button {
     padding: 14px 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  .login-container {
+    padding: 28px 16px;
+  }
+
+  .heading {
+    font-size: 24px;
+  }
+
+  .paragraph,
+  .bottom-text {
+    font-size: 13px;
+  }
+}
+
+@media (max-height: 560px) {
+  body {
+    align-items: flex-start;
+  }
+
+  .login-container {
+    margin: 12px 0;
   }
 }

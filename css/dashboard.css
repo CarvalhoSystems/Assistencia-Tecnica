@@ -32,6 +32,7 @@ body {
   color: var(--text);
   font-family: "Segoe UI", system-ui, sans-serif;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /*==========================
@@ -136,6 +137,7 @@ Main Content
 .main-content {
   margin-left: 260px;
   min-height: 100vh;
+  width: calc(100% - 260px);
 }
 
 .top-bar {
@@ -207,6 +209,7 @@ Dashboard Content
 ==========================*/
 .dashboard-content {
   padding: 30px;
+  width: 100%;
 }
 
 /* Stats Cards */
@@ -384,6 +387,7 @@ OS Table
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -413,6 +417,8 @@ OS Table
 .filters {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 .filter-btn {
@@ -438,6 +444,7 @@ OS Table
 .os-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 760px;
 }
 
 .os-table th {
@@ -655,6 +662,8 @@ Modal
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   padding: 24px;
   border-bottom: 1px solid var(--border);
 }
@@ -685,6 +694,7 @@ Modal
 
 .modal-body {
   padding: 24px;
+  overflow-x: auto;
 }
 
 /* Ajuste específico para o Financeiro não ficar gigante nem cortado */
@@ -859,7 +869,8 @@ Modal
 
 .checklist-clientes {
   padding: 6px 20px;
-  width: 25%;
+  width: clamp(180px, 30vw, 320px);
+  min-width: 160px;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: transparent;
@@ -930,9 +941,14 @@ Modal
 .modal-footer {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 24px;
   border-top: 1px solid var(--border);
+}
+
+.modal-footer .btn {
+  min-height: 42px;
 }
 
 /*==================
@@ -1211,6 +1227,14 @@ previsao de Entrega Manual
 Responsividade
 ==========================*/
 @media (max-width: 1200px) {
+  .dashboard-content {
+    padding: 24px;
+  }
+
+  .top-bar {
+    padding: 16px 24px;
+  }
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1224,13 +1248,88 @@ Responsividade
   }
 }
 
+@media (max-width: 1024px) {
+  .top-bar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .top-bar-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .photos-upload {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .fotos-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar {
-    transform: translateX(-100%);
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    z-index: 1;
+  }
+
+  .sidebar-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 14px;
+    overflow: visible;
+  }
+
+  .nav-item {
+    border-left: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    min-height: 42px;
+  }
+
+  .nav-item:hover,
+  .nav-item.active {
+    border-left-color: transparent;
+    border-color: var(--primary);
+  }
+
+  .sidebar-footer {
+    padding-top: 0;
   }
 
   .main-content {
     margin-left: 0;
+    width: 100%;
+  }
+
+  .top-bar {
+    position: static;
+    padding: 14px 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .top-bar-actions {
+    justify-content: stretch;
+  }
+
+  .top-bar-actions .btn {
+    flex: 1;
+    justify-content: center;
   }
 
   .stats-grid {
@@ -1239,6 +1338,32 @@ Responsividade
 
   .charts-section {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-content {
+    padding: 16px;
+  }
+
+  .stat-card,
+  .chart-card,
+  .os-section,
+  .form-section,
+  .detalhes-section {
+    padding: 16px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .search-box input {
+    width: 100%;
+    min-width: 0;
   }
 
   .nova-os-form {
@@ -1252,9 +1377,81 @@ Responsividade
   .os-table {
     display: block;
     overflow-x: auto;
+    min-width: 700px;
   }
 
   .detalhes-os-content {
+    grid-template-columns: 1fr;
+  }
+
+  .checklist-grid,
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .checklist-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .modal {
+    width: calc(100% - 20px);
+    max-height: calc(100vh - 20px);
+    border-radius: 14px;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 14px;
+  }
+
+  .modal-title {
+    font-size: 18px;
+  }
+
+  .modal-footer .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .checklist-clientes {
+    width: 100%;
+    order: 3;
+  }
+
+  #modal-financeiro .modal {
+    max-width: 100%;
+  }
+
+  .toast-container {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo {
+    font-size: 20px;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .btn {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .stat-value {
+    font-size: 26px;
+  }
+
+  .photos-upload,
+  .fotos-grid {
     grid-template-columns: 1fr;
   }
 }
