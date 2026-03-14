@@ -30,27 +30,49 @@ function login() {
 
   auth
     .signInWithEmailAndPassword(email, password)
-    .then(() => {
-      Swal.fire({
-        icon: "success",
-        title: "Login bem-sucedido!",
-        text: "Bem-vindo à Assistencia Tecnica!",
-        showConfirmButton: false,
-        timer: 1500,
-      }).then(() => {
-        window.location.href = "./pages/dashboard.html";
-      });
+    .then((userCredential) => {
+      const userId = userCredential.user.uid;
+
+      // BUSCA O TENANTID DO USUÁRIO NO FIRESTORE
+      firebase
+        .firestore()
+        .collection("users")
+        .doc(userId)
+        .get()
+        .then(async (doc) => {
+          let tenantId = doc.exists ? doc.data().tenantId : null;
+
+          if (!tenantId) {
+            tenantId = `loja_${Date.now()}`;
+            await firebase.firestore().collection("users").doc(userId).set({
+              email: email,
+              tenantId: tenantId,
+              criadoEm: new Date(),
+            });
+          }
+
+          // SALVA O TENANTID PARA USAR EM TODAS AS PÁGINAS
+          localStorage.setItem("tenantId", tenantId);
+
+          Swal.fire({
+            icon: "success",
+            title: "Login bem-sucedido!",
+            text: "Bem-vindo!",
+            showConfirmButton: false,
+            timer: 1500,
+          }).then(() => {
+            window.location.href = "./pages/dashboard.html";
+          });
+        });
     })
     .catch((error) => {
-      let mensagemErro = "E-mail ou senha incorretos.";
-      console.error(error.code);
-
-      if (error.code === "auth/invalid-email")
-        mensagemErro = "E-mail inválido.";
-      if (error.code === "auth/user-disabled")
-        mensagemErro = "Este usuário foi desativado.";
-
-      Swal.fire({ icon: "error", title: "Erro no login", text: mensagemErro });
+      // ... seu código de erro continua aqui
+      Swal.fire({
+        icon: "error",
+        title: "Erro",
+        text: "Verifique seu e-mail e senha.",
+      });
+      console.error(error);
     });
 }
 

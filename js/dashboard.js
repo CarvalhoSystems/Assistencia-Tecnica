@@ -17,7 +17,9 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 const auth = firebase.auth();
 const storage = firebase.app().storage();
-const LOCAL_ORDENS_KEY = "ordens_servico_local";
+let tenantId = localStorage.getItem("tenantId");
+const getLocalOrdensKey = () =>
+  `ordens_servico_local_${tenantId || "sem_tenant"}`;
 const BUCKET_STORAGE_ESPERADO = firebaseConfig.storageBucket;
 const ORIGENS_DESENVOLVIMENTO = [
   "http://127.0.0.1:5500",
@@ -74,7 +76,7 @@ function converterParaData(valor) {
 
 function salvarOrdensLocal() {
   try {
-    localStorage.setItem(LOCAL_ORDENS_KEY, JSON.stringify(ordensServico));
+    localStorage.setItem(getLocalOrdensKey(), JSON.stringify(ordensServico));
   } catch (error) {
     console.error("Erro ao salvar OS localmente:", error);
   }
@@ -82,7 +84,7 @@ function salvarOrdensLocal() {
 
 function carregarOrdensLocal() {
   try {
-    const dados = localStorage.getItem(LOCAL_ORDENS_KEY);
+    const dados = localStorage.getItem(getLocalOrdensKey());
     if (!dados) return false;
     const parsed = JSON.parse(dados);
     if (!Array.isArray(parsed)) return false;
@@ -107,8 +109,6 @@ document.addEventListener("DOMContentLoaded", () => {
   validarBucketStorage();
   verificarAuth();
   setupEventListeners();
-  carregarOrdens();
-  carregarClientes();
   atualizarPrevisaoEntrega();
 });
 
@@ -152,9 +152,55 @@ function validarBucketStorage() {
 // Authentication
 //======================
 function verificarAuth() {
-  auth.onAuthStateChanged((user) => {
+  auth.onAuthStateChanged(async (user) => {
     if (!user) {
       window.location.href = "../index.html";
+      return;
+    }
+
+    try {
+      const userRef = db.collection("users").doc(user.uid);
+      const userDoc = await userRef.get();
+      let tenantIdEncontrado = userDoc.exists ? userDoc.data().tenantId : null;
+
+      if (!tenantIdEncontrado && tenantId) {
+        await userRef.set(
+          {
+            email: user.email || "",
+            tenantId: tenantId,
+            atualizadoEm: new Date(),
+          },
+          { merge: true },
+        );
+        tenantIdEncontrado = tenantId;
+      }
+
+      if (!tenantIdEncontrado) {
+        tenantIdEncontrado = `loja_${Date.now()}`;
+        await userRef.set({
+          email: user.email || "",
+          tenantId: tenantIdEncontrado,
+          criadoEm: new Date(),
+        });
+      }
+
+      if (tenantId !== tenantIdEncontrado) {
+        tenantId = tenantIdEncontrado;
+        localStorage.setItem("tenantId", tenantIdEncontrado);
+      }
+
+      await carregarOrdens();
+      await carregarClientes();
+    } catch (error) {
+      console.error("Erro ao validar tenant:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Erro de autenticação",
+        text: "Não foi possível validar o tenant. Faça login novamente.",
+      }).then(() => {
+        auth.signOut();
+        window.location.href = "../index.html";
+      });
     }
   });
 }
@@ -396,7 +442,11 @@ function selecionarCliente(clienteId) {
 
 async function carregarClientes() {
   try {
-    const snapshot = await db.collection("clientes").get();
+    if (!tenantId) return;
+    const snapshot = await db
+      .collection("clientes")
+      .where("tenantId", "==", tenantId)
+      .get();
     clientes = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -421,6 +471,7 @@ async function salvarNovoCliente() {
 
   try {
     const docRef = await db.collection("clientes").add({
+      tenantId,
       nome,
       cpf,
       telefone,
@@ -581,7 +632,10 @@ async function salvarEdicaoClienteCadastrado() {
     await db
       .collection("clientes")
       .doc(String(clienteId))
-      .update(clienteDataAtualizada);
+      .update({
+        ...clienteDataAtualizada,
+        tenantId,
+      });
 
     // Update local array
     const index = clientes.findIndex((c) => String(c.id) === String(clienteId));
@@ -723,9 +777,12 @@ function buscarClientesCadastrados() {
 //======================
 async function carregarOrdens() {
   try {
+    if (!tenantId) return;
     let cacheLocal = [];
     try {
-      cacheLocal = JSON.parse(localStorage.getItem(LOCAL_ORDENS_KEY) || "[]");
+      cacheLocal = JSON.parse(
+        localStorage.getItem(getLocalOrdensKey()) || "[]",
+      );
     } catch {
       cacheLocal = [];
     }
@@ -737,6 +794,7 @@ async function carregarOrdens() {
 
     const snapshot = await db
       .collection("ordens_servico")
+      .where("tenantId", "==", tenantId)
       .orderBy("createdAt", "desc")
       .get();
 
@@ -846,6 +904,14 @@ async function salvarNovaOS() {
   let osData = null;
 
   try {
+    if (!tenantId) {
+      Swal.fire(
+        "Erro",
+        "Tenant não identificado. Faça login novamente.",
+        "error",
+      );
+      return;
+    }
     // Validate required fields
     const nomeCliente = document.getElementById("nome-cliente")?.value;
     const marca = document.getElementById("marca-aparelho")?.value;
@@ -883,6 +949,7 @@ async function salvarNovaOS() {
     // Prepare OS data
     osData = {
       id: osNumber,
+      tenantId,
       cliente: {
         nome: nomeCliente,
         telefone: document.getElementById("whatsapp-cliente")?.value || "",
@@ -912,6 +979,7 @@ async function salvarNovaOS() {
     const osDataFirestore = {
       ...osData,
       fotos: fotosParaUsoLocal,
+      tenantId,
     };
 
     await db.collection("ordens_servico").add(osDataFirestore);
@@ -932,6 +1000,19 @@ async function salvarNovaOS() {
     renderizarOrdens();
   } catch (error) {
     console.error("Erro ao criar OS:", error);
+    const mensagemErro = String(error?.message || "");
+    const erroPermissao =
+      error?.code === "permission-denied" ||
+      mensagemErro.toLowerCase().includes("permission");
+
+    if (erroPermissao) {
+      Swal.fire(
+        "Erro ao criar OS",
+        "Sem permissão para gravar no Firebase. Verifique as regras e o tenantId.",
+        "error",
+      );
+      return;
+    }
 
     // fallback local para não perder o atendimento
     try {
@@ -1050,7 +1131,10 @@ async function salvarOrdemServicoCompleta() {
       createdAt: new Date(),
     };
 
-    await db.collection("ordens_servico").add(dadosOS);
+    await db.collection("ordens_servico").add({
+      ...dadosOS,
+      tenantId,
+    });
 
     Swal.fire("Sucesso!", "OS salva com as fotos!", "success");
     return dadosOS;
@@ -1316,6 +1400,7 @@ async function alterarStatus(osId, novoStatus) {
     // Find and update in Firestore
     const snapshot = await db
       .collection("ordens_servico")
+      .where("tenantId", "==", tenantId)
       .where("id", "==", osId)
       .get();
 
@@ -1372,6 +1457,7 @@ async function excluirOS(osId) {
   try {
     const snapshot = await db
       .collection("ordens_servico")
+      .where("tenantId", "==", tenantId)
       .where("id", "==", osId)
       .get();
 
@@ -1530,6 +1616,7 @@ async function salvarEdicaoOS() {
     // Find and update in Firestore
     const snapshot = await db
       .collection("ordens_servico")
+      .where("tenantId", "==", tenantId)
       .where("id", "==", osId)
       .get();
 
@@ -1953,6 +2040,7 @@ function finalizarOS(osId) {
   try {
     // Find and update in Firestore
     db.collection("ordens_servico")
+      .where("tenantId", "==", tenantId)
       .where("id", "==", osId)
       .get()
       .then((snapshot) => {

@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hasTenant() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId != null;
+    }
+
+    function userTenantId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /clientes/{docId} {
+      allow read: if isSignedIn()
+        && hasTenant()
+        && resource.data.tenantId == userTenantId();
+      allow create: if isSignedIn()
+        && hasTenant()
+        && request.resource.data.tenantId == userTenantId();
+      allow update, delete: if isSignedIn()
+        && hasTenant()
+        && resource.data.tenantId == userTenantId();
+    }
+
+    match /ordens_servico/{docId} {
+      allow read: if isSignedIn()
+        && hasTenant()
+        && resource.data.tenantId == userTenantId();
+      allow create: if isSignedIn()
+        && hasTenant()
+        && request.resource.data.tenantId == userTenantId();
+      allow update, delete: if isSignedIn()
+        && hasTenant()
+        && resource.data.tenantId == userTenantId();
+    }
+  }
+}

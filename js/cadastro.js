@@ -21,13 +21,14 @@ const auth = firebase.auth();
 // Função de cadastro Novos usuários
 // =======================
 
-function cadastro() {
+async function cadastro() {
   const nome = document.getElementById("nome").value.trim();
+  const nomeLoja = document.getElementById("nome-loja").value.trim();
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
   const confirmPassword = document.getElementById("confirm-password").value;
 
-  if (!nome || !email || !password || !confirmPassword) {
+  if (!nome || !nomeLoja || !email || !password || !confirmPassword) {
     Swal.fire("Erro", "Preencha todos os campos!", "warning");
     return;
   }
@@ -41,47 +42,55 @@ function cadastro() {
     Swal.fire("Erro", "A senha deve ter no mínimo 6 caracteres.", "warning");
     return;
   }
-  // Forma correta no modo COMPAT:
-  auth
-    .createUserWithEmailAndPassword(email, password)
-    .then((userCredential) => {
-      // User account created and signed in
-      const user = userCredential.user;
-      console.log("User account created:", user);
 
-      // Envia o nome do usuário para o banco de dados
-      user.updateProfile({
-        displayName: nome,
-      });
+  try {
+    const userCredential = await auth.createUserWithEmailAndPassword(
+      email,
+      password,
+    );
+    const user = userCredential.user;
 
-      Swal.fire({
-        icon: "success",
-        title: "Cadastro bem-sucedido!",
-        text: "Bem-vindo à Assistencia Nascimento!",
-        showConfirmButton: false,
-        timer: 1500,
-      }).then(() => {
-        window.location.href = "../pages/dashboard.html";
-      });
-    })
-    .catch((error) => {
-      let mensagemErro = "Ocorreu um erro ao cadastrar.";
-
-      // Tradução de erros comuns para a apresentação ficar profissional
-      if (error.code === "auth/email-already-in-use")
-        mensagemErro = "E-mail já cadastrado.";
-      if (error.code === "auth/invalid-email")
-        mensagemErro = "E-mail inválido.";
-      if (error.code === "auth/operation-not-allowed")
-        mensagemErro = "Usuário já cadastrado.";
-
-      Swal.fire({
-        icon: "error",
-        title: "Erro no cadastro",
-        text: mensagemErro,
-      });
-      console.error(error.code);
+    await user.updateProfile({
+      displayName: nome,
     });
+
+    const tenantId = `loja_${Date.now()}`;
+
+    await firebase.firestore().collection("users").doc(user.uid).set({
+      email: email,
+      tenantId: tenantId,
+      nomeLoja: nomeLoja,
+      criadoEm: new Date(),
+    });
+
+    localStorage.setItem("tenantId", tenantId);
+
+    Swal.fire({
+      icon: "success",
+      title: "Cadastro bem-sucedido!",
+      text: "Bem-vindo à Assistencia Nascimento!",
+      showConfirmButton: false,
+      timer: 1500,
+    }).then(() => {
+      window.location.href = "../pages/dashboard.html";
+    });
+  } catch (error) {
+    let mensagemErro = "Ocorreu um erro ao cadastrar.";
+
+    // Tradução de erros comuns para a apresentação ficar profissional
+    if (error.code === "auth/email-already-in-use")
+      mensagemErro = "E-mail já cadastrado.";
+    if (error.code === "auth/invalid-email") mensagemErro = "E-mail inválido.";
+    if (error.code === "auth/operation-not-allowed")
+      mensagemErro = "Usuário já cadastrado.";
+
+    Swal.fire({
+      icon: "error",
+      title: "Erro no cadastro",
+      text: mensagemErro,
+    });
+    console.error(error.code);
+  }
 }
 //======================
 // Função de voltar
